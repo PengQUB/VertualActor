@@ -1,0 +1,4 @@
+对直播间raw data做了如下处理：
+1、计算了礼物价格；以财富值lv作为enterroom特征；
+2、合并了毫秒，规则是所有特征 rank\thumbs\enterroom_lv\sysbilibili\pk取大值
+3、PK只提取了pk = 1，并以第一个为1的时间点向后+5min，全取为1
