@@ -14,7 +14,7 @@ type(js)
 
 dict = {}
 msgType = ''
-nsgUnit = ''
+msgUnit = ''
 
 # 2 load gift-price table
 gift_path = './data/gift.txt'
@@ -102,18 +102,18 @@ with open('./liveroom_data.json', 'w') as f:
         f.write(j)
         f.write('\n')
 
+"""
+合并毫秒数据为整秒
+"""
+def f(r):
+    r['time'] = r['time'].split('.')[0]
+    return r
 
-# path = '/Users/momo/Company/script_python/liveroom_data.json'
-# file = open(path, 'rb')
-#
-# js = file.read().decode('utf-8')
-# type(js)
-#
-# df_empty = pd.DataFrame()
-#
-# for line in open(path, encoding='UTF-8'):
-#     data_list = json.loads(line)                 # 读取每一行，将每一行读取成为json文件
-#     data_df = pd.DataFrame(data_list, index=[0]) # 将每一行转成data frame的形式
-#     df_empty = df_empty.append(data_df)
-#
-# print(df_empty.head())
+path = './liveroom_data.json'
+df = pd.read_json(path, lines=True)
+df['time'] = pd.to_datetime(df.time)
+df.sort_values('time', inplace=True)
+df.to_csv('./tmp_restore/tmp_data.csv')      # 重新read一次，否则time型数据无法split
+df = pd.read_csv('./tmp_restore/tmp_data.csv')
+new_df = df.apply(f, axis=1).groupby('time').max()
+new_df.to_csv('./liveroom_data.csv')    # axis=1表示apply到列
