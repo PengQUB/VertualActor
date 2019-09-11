@@ -21,18 +21,14 @@ def ceate_feature_map(features):
     for feat in features:
         if feat.find('Unnamed') == -1:
             outfile.write('{0}\t{1}\tq\n'.format(i, feat))
-        i = i + 1
+            i = i + 1
 
     outfile.close()
 
 
 def down_sample(df):
-    df1 = df[df['y'] != 0]#正例
-    # df2 = df[df['y'] == 2]
-    # df3 = df[df['y'] == 3]
-    # df4 = df[df['y'] == 4]
-    # df5 = df[df['y'] == 5]
-    df0 = df[df['y'] == 0]##负例
+    df1 = df[df['label'] != 0]#正例
+    df0 = df[df['label'] == 0]##负例
     df3=df0.sample(frac=0.01)##抽负例
     return pd.concat([df1, df3], ignore_index=True)
 
@@ -62,29 +58,29 @@ def runXGB(train_X, train_y, test_X, test_y=None, feature_names=None, seed_val=0
         model = xgb.train(plst, xgtrain, num_rounds)
 
     pred_test_y = model.predict(xgtest)
-    return pred_test_y, model
+    pred_train_y = model.predict(xgtrain)
+    return pred_test_y, pred_train_y, model
 
 
 if __name__ == '__main__':
 
     # 1 导入数据
     data_path = "./result_data/"
-    train_file = data_path + "train_data.csv"
+    train_file = data_path + "train_data_21_22.csv"
     train_df = pd.read_csv(train_file)
-    train_df = down_sample(train_df)      # 样本不均衡，故对负例用欠采样
-
-    train_df.fillna(0)
-
-    features = list(train_df.columns[0:])  # create xgb.fmap for plot
-    ceate_feature_map(features)
+    train_df_total = train_df.fillna(0)
+    train_df = down_sample(train_df_total)      # 样本不均衡，故对负例用欠采样
+    print('after dowmsample', train_df.shape)
 
 
     # 2 构建特征
     # We do not need any pre-processing for numerical features and so create a list with those features.
-    features_to_use = ["enterroom_lv", "gift", "online_num", "thumbs"]
+    features_to_use = ["enterroom_lv", "gift", "online_num", "thumbs", "rank_hour", "region", "time_sum"]
 
     # Now let us create some new features from the given features.
-    # train_df["sysbilibili"] = train_df["sysbilibili"].apply(len)
+    train_df["sysbilibili"] = train_df["sysbilibili"].apply(len)
+    train_df_total["sysbilibili"] = train_df_total["sysbilibili"].apply(len)
+
 
     # convert the created column to datetime object so as to extract more features
     train_df["time"] = pd.to_datetime(train_df["time"])
@@ -97,39 +93,49 @@ if __name__ == '__main__':
 
 
     # adding all these new features to use list #
-    features_to_use.extend(["time_year", "time_month", "time_day", "time_hour"])
+    features_to_use.extend(["time_year", "time_month", "time_day", "time_hour", "sysbilibili"])
 
-    train_X = np.array(train_df[features_to_use])   # shape: (6811, 8)
-    print('train_X.shape', train_X.shape)
-    train_y = np.array(train_df['y']).astype(int)
+    features = list(train_df[features_to_use])  # create xgb.fmap for plot
+    ceate_feature_map(features)
 
 
-    cv_scores = []
+    train_X = np.array(train_df[features_to_use])
+    train_y = np.array(train_df['label']).astype(int)
+
+
     acc = []
-    kf = model_selection.KFold(n_splits=5, shuffle=True, random_state=2016)
+    kf = model_selection.KFold(n_splits=5, shuffle=True, random_state=2016) # random_state=2016表示下次取出的样本还是相同的
     for dev_index, val_index in kf.split(range(train_X.shape[0])):
         dev_X, val_X = train_X[dev_index,:], train_X[val_index,:]
+        print(dev_X.shape)
+        print(val_X.shape)
         dev_y, val_y = train_y[dev_index], train_y[val_index]
-        print('dev_X.shape', dev_X.shape)
-        print(dev_y.shape)
-        preds, model = runXGB(dev_X, dev_y, val_X, val_y)  # model training
+        preds, preds_train, model = runXGB(dev_X, dev_y, val_X, val_y)  # model training
 
-        # cv_scores.append(log_loss(val_y, preds))
         acc.append(accuracy_score(val_y, preds))
-        # print('cv_scores', cv_scores)
 
         print(preds)
         print('acc', acc)
+        print(val_y)
         break
 
+    xgtrain = xgb.DMatrix(train_X, label=train_y)
+    total_preds = model.predict(xgtrain)
+    from sklearn import metrics
+    target_names = ['0', '1', '2', '3', '4', '5']
+    print(metrics.classification_report(val_y, preds, target_names=target_names))
+    print(metrics.classification_report(train_y, total_preds, target_names=target_names))
 
-    # plot_tree(model, fmap='xgb.fmap')
-    # fig = plt.gcf()
-    # fig.set_size_inches(150, 100)
-    # fig.savefig('tree.png')
+    # print(metrics.classification_report(train_y_total_y, total_preds, target_names=target_names))  # 总样本集上的metric
+
+
+    plot_tree(model, fmap='xgb.fmap')
+    fig = plt.gcf()
+    fig.set_size_inches(150, 100)
+    fig.savefig('./tree.png')
 
     # 拼接val_X和preds
-    df1 = pd.DataFrame(val_X)
-    df2 = pd.DataFrame(preds)
-    df = pd.concat([df1, df2], axis=1)
-    df.to_csv('./prediction.csv')
+    # df1 = pd.DataFrame(val_X)
+    # df2 = pd.DataFrame(preds)
+    # df = pd.concat([df1, df2], axis=1)
+    # df.to_csv('./prediction.csv')

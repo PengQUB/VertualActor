@@ -5,8 +5,8 @@ NB: live room data 有毫秒的数据，需要合并到整秒
 import pandas as pd
 import numpy as np
 
-df1 = pd.read_csv('./liveroom_data.csv')
-df2 = pd.read_csv('./data/y_train.csv')
+df1 = pd.read_csv('./result_data/liveroom_data.csv')
+df2 = pd.read_csv('./result_data/y_train.csv')
 
 df2.drop_duplicates(subset='time', inplace=True)
 
@@ -36,18 +36,18 @@ df.to_csv('data/input_merge.csv')
 df_train = pd.merge(df,df2, how='left',on=['time'])
 df_train.drop(['a','index'],axis=1,inplace=True)
 
-df_train.to_csv('./tmp_restore/train_set.csv')
-
-df = pd.read_csv('./tmp_restore/train_set.csv')
-
-df['time'] = pd.to_datetime(df['time'], format='%Y/%m/%d %H:%M:%S')
-
-df[['online_num','thumbs']] = df[['online_num','thumbs']].replace(0.0, np.nan)
-
-df.loc[0,['thumbs']] = 0
-
-df[['online_num','thumbs']] = df[['online_num','thumbs']].interpolate()
-
-df['online_num'] = df['online_num'].astype('int')
-df['thumbs'] = df['thumbs'].apply(lambda x: x//10*10).astype('int')
-df.to_csv('./result_data/train_data.csv')
+# df_train.to_csv('./tmp_restore/train_set.csv')
+#
+# df = pd.read_csv('./tmp_restore/train_set.csv')
+#
+# df['time'] = pd.to_datetime(df['time'], format='%Y/%m/%d %H:%M:%S')
+#
+# df[['online_num','thumbs']] = df[['online_num','thumbs']].replace(0.0, np.nan)
+#
+# df.loc[0,['thumbs']] = 0
+#
+# df[['online_num','thumbs']] = df[['online_num','thumbs']].interpolate()
+#
+# df['online_num'] = df['online_num'].astype('int')
+# df['thumbs'] = df['thumbs'].apply(lambda x: x//10*10).astype('int')
+# df.to_csv('./result_data/train_data.csv')
